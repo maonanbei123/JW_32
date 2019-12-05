@@ -1,14 +1,10 @@
 //201802104044杨轲
 package cn.edu.sdjzu.xg.bysj.dao;
-
 import cn.edu.sdjzu.xg.bysj.domain.Teacher;
-import cn.edu.sdjzu.xg.bysj.service.TeacherService;
 import util.JdbcHelper;
-
 import java.sql.*;
 import java.util.Collection;
 import java.util.TreeSet;
-
 public final class TeacherDao {
 	private static TeacherDao teacherDao=
 			new TeacherDao();
@@ -80,33 +76,35 @@ public final class TeacherDao {
 		PreparedStatement preparedStatement = null;
 		Connection connection = null;
 		boolean isCommit = false;
+		int enterInfoId = 0;
 		try {
 			//获得数据库连接对象
 			connection = JdbcHelper.getConn();
 			//关闭自动提交
 			connection.setAutoCommit(false);
 			String addTeacher_sql = "INSERT INTO teacher (no,name,title_id,degree_id,department_id) VALUES" + " (?,?,?,?,?)";
-			//在该连接上创建预编译语句对象
-			preparedStatement = connection.prepareStatement(addTeacher_sql);
+			//在该连接上创建预编译语句对象，该对象可获得自动生成的键
+			preparedStatement = connection.prepareStatement(addTeacher_sql,Statement.RETURN_GENERATED_KEYS);
 			//为预编译参数赋值
 			preparedStatement.setString(1, teacher.getNo());
 			preparedStatement.setString(2, teacher.getName());
 			preparedStatement.setInt(3, teacher.getTitle().getId());
 			preparedStatement.setInt(4, teacher.getDegree().getId());
 			preparedStatement.setInt(5, teacher.getDepartment().getId());
+			//执行预编译语句
 			preparedStatement.executeUpdate();
-
+			//获得自增型的变量
+			ResultSet rs = preparedStatement.getGeneratedKeys();
+			if(rs.next()) {
+				//获得第一个自增型的键值
+				enterInfoId = rs.getInt(1);
+			}
 			String addUser_sql = "INSERT INTO USER (username,password,loginTime,teacher_id) VALUES" + "(?,?,?,?)";
 			preparedStatement = connection.prepareStatement(addUser_sql);
 			preparedStatement.setString(1, teacher.getNo());
 			preparedStatement.setString(2, teacher.getNo());
 			preparedStatement.setTimestamp(3, new Timestamp((new java.util.Date()).getTime()));
-			//调用findAll方法，遍历数据库中teacher表，返回集合，将集合转为数组
-			Object[] objects = this.findAll().toArray();
-			//获取object类型数组的最后一个元素，强制类型转换为Teacher型，获取该对象的id值，该值为数据库中id最大的值
-			int teacher_idBefore = ((Teacher)objects[objects.length - 1]).getId();
-			//将目前数据库中id最大的值+1赋给User中的teacher_id字段
-			preparedStatement.setInt(4,teacher_idBefore + 1);
+			preparedStatement.setInt(4, enterInfoId);
 			preparedStatement.executeUpdate();
 			//提交当前连接所做的操作
 			connection.commit();
